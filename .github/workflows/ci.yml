@@ -1,0 +1,14 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    uses: archtenet/platform-infra/.github/workflows/service-ci.yml@main
+    with:
+      service-name: cart-bff
+      helm-path: cart-bff/helm
+    secrets: inherit

@@ -1,0 +1,119 @@
+openapi: 3.0.0
+paths:
+  /health:
+    get:
+      operationId: HealthController_check
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - health
+  /cart:
+    get:
+      operationId: CartController_getCart
+      parameters: []
+      responses:
+        '200':
+          description: The authenticated user's cart
+      tags:
+        - cart
+    delete:
+      operationId: CartController_clear
+      parameters: []
+      responses:
+        '204':
+          description: Cart cleared
+      tags:
+        - cart
+  /cart/items:
+    post:
+      operationId: CartController_addItem
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemDto'
+      responses:
+        '200':
+          description: Item added (qty incremented); price/name resolved from catalog-service
+      tags:
+        - cart
+  /cart/items/{sku}:
+    patch:
+      operationId: CartController_setQty
+      parameters:
+        - name: sku
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetCartItemQtyDto'
+      responses:
+        '200':
+          description: Line item quantity set absolutely; 0 removes it
+      tags:
+        - cart
+    delete:
+      operationId: CartController_removeItem
+      parameters:
+        - name: sku
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Line item removed
+      tags:
+        - cart
+  /cart/checkout:
+    post:
+      operationId: CartController_checkout
+      parameters: []
+      responses:
+        '201':
+          description: Order placed via order-service; cart cleared on success
+      tags:
+        - cart
+info:
+  title: Cart BFF API
+  description: Redis-only cart aggregation BFF. Cart state is keyed by the authenticated user's email — no Mongo, no cart-service.
+  version: 0.1.0
+  contact: {}
+tags: []
+servers: []
+components:
+  schemas:
+    AddCartItemDto:
+      type: object
+      properties:
+        sku:
+          type: string
+          example: sku-123
+          description: Catalog item id
+        qty:
+          type: number
+          example: 1
+          minimum: 1
+          description: Amount to increment the line by
+      required:
+        - sku
+        - qty
+    SetCartItemQtyDto:
+      type: object
+      properties:
+        qty:
+          type: number
+          example: 2
+          minimum: 0
+          description: Absolute quantity; 0 removes the line item
+      required:
+        - qty

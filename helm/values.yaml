@@ -1,0 +1,84 @@
+# ---------------------------------------------------------------------------
+# cart-bff chart values
+#
+# All keys must be nested under "base-service:" so Helm routes them to the
+# base-service subchart.  Override individual keys at deploy time with:
+#   helm upgrade --set base-service.image.tag=sha-abc1234 ...
+# ---------------------------------------------------------------------------
+base-service:
+
+  fullnameOverride: "cart-bff"
+  nameOverride: "cart-bff"
+
+  image:
+    repository: ghcr.io/archtenet/cart-bff
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicaCount: 2
+
+  # ---------------------------------------------------------------------------
+  # Application container — non-sensitive runtime config only.
+  #
+  # Secrets (REDIS_URL, COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID) are sourced
+  # from AWS Secrets Manager and synced into a k8s Secret by External Secrets
+  # Operator, then injected via envFrom.secretRef in the base chart deployment.
+  # ---------------------------------------------------------------------------
+  app:
+    port: 3000
+    env:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      PORT: "3000"
+      CART_TTL_SECONDS: "604800"
+      CATALOG_SERVICE_URL: "http://catalog-service.default.svc.cluster.local"
+      ORDER_SERVICE_URL: "http://order-service.default.svc.cluster.local"
+      # OpenTelemetry — traces exported to the in-cluster collector.
+      # Port 4317 (gRPC), not 4318 (HTTP/protobuf): tracing.ts instantiates
+      # OTLPTraceExporter from @opentelemetry/exporter-trace-otlp-grpc, which
+      # always speaks gRPC on whatever endpoint it is given -- pointing it at
+      # the HTTP receiver port silently drops every span.
+      OTEL_SERVICE_NAME: cart-bff
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4317"
+      COGNITO_REGION: us-east-1
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 256Mi
+
+  envoy:
+    image: "envoyproxy/envoy:v1.29-latest"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+  service:
+    port: 80
+
+  ingress:
+    host: cart-bff.internal.archtenet.com
+    path: /api/v1/cart
+    pathType: Prefix
+
+  opaAddress: "opa-pdp.opa-system.svc.cluster.local:9191"
+
+  # Expected keys: REDIS_URL, COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID, JWT_SECRET
+  secretsManagerPath: "/prod/cart-bff"
+
+  irsaRoleArn: "arn:aws:iam::ACCOUNT_ID:role/cart-bff-irsa"
+
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+  podDisruptionBudget:
+    minAvailable: 1
