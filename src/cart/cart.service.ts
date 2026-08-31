@@ -25,9 +25,10 @@ export class CartService {
   // per request, while createXServiceClient() bakes defaultHeaders in at
   // construction time. Building the (header-only) closure per call is the
   // cheapest way to keep it current — no connection is opened until fetch() runs.
-  // authHeaders forwards the caller's own credential — catalog-service and
-  // order-service each independently verify the Cognito JWT (global guard),
-  // so a request arriving without it would 401 in a real deployment.
+  // authHeaders forwards the caller's own credential — catalog-service's and
+  // order-service's Envoy PEP sidecars verify the Cognito JWT signature (the
+  // app guards only extract identity), so a request arriving without it
+  // would be denied in a real deployment.
   private catalogClient(authHeaders: Record<string, string>) {
     return createCatalogServiceClient({
       baseUrl: this.config.get<string>('catalogServiceUrl')!,

@@ -117,9 +117,9 @@ curl -s -X POST $BASE/cart/checkout | jq
 curl -s -X DELETE $BASE/cart -o /dev/null -w "%{http_code}\n"
 ```
 
-With `AUTH_DISABLED=true` (set in `.env.example`), the JWT guard bypasses
-signature verification but still populates `req.claims.email` — from the
-`x-test-user-email` header if present, otherwise `test@example.com` — so
-every `@Claims()`-based route keeps working under test. Set
-`AUTH_DISABLED=false` and point `COGNITO_ISSUER`/`COGNITO_AUDIENCE` at a real
-pool for production-like local testing.
+With `AUTH_DISABLED=true` (set in `.env.example`), the identity guard skips
+extraction and populates `req.claims.email` — from the `x-test-user-email`
+header if present, otherwise `test@example.com` — so every `@Claims()`-based
+route keeps working under test. With `AUTH_DISABLED=false` the guard reads
+identity from the decoded token or propagated `x-user-*` headers; signature
+verification lives in the Envoy PEP, not here (see ARCHITECTURE.md).

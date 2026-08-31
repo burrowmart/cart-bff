@@ -50,8 +50,8 @@ describe('CartService', () => {
 
       const cart = await service.addItem('alice@example.com', 'sku-1', 3, { authorization: 'Bearer tok' });
 
-      // catalog-service globally guards every route with its own Cognito JWT
-      // verification — the caller's credential must be forwarded, not dropped.
+      // catalog-service sits behind an Envoy PEP that verifies the Cognito JWT
+      // on every route — the caller's credential must be forwarded, not dropped.
       expect(fetchMock).toHaveBeenCalledWith(
         'http://catalog-service.test/catalog/sku-1',
         expect.objectContaining({

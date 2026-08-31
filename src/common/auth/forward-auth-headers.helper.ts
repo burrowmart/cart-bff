@@ -1,9 +1,11 @@
 /**
- * Every service in this platform globally guards its routes (APP_GUARD ->
- * JwtGuard) and independently verifies the Cognito JWT — a BFF calling
- * downstream must forward the caller's own credential, not mint its own.
- * Picks whichever of the guard's accepted header forms the inbound request
- * actually carried and re-sends it verbatim on the outbound call.
+ * Outbound identity propagation. The caller was already resolved by JwtGuard
+ * (which stamps x-user-email / x-user-roles onto the inbound headers), so a
+ * downstream service reuses those instead of re-decoding the token. The
+ * original bearer header still travels too — not for the downstream guard,
+ * but for the callee's Envoy PEP sidecar, which verifies the signature via
+ * OPA ext_authz on every hop (the single point where authentication actually
+ * happens; see ARCHITECTURE.md "Auth & Authz").
  */
 export function forwardAuthHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -11,6 +13,10 @@ export function forwardAuthHeaders(headers: Record<string, string | string[] | u
     const value = headers[name];
     if (typeof value === 'string') out[name] = value;
   };
+  // Resolved identity, stamped by JwtGuard
+  pick('x-user-email');
+  pick('x-user-roles');
+  // Original credential — required by the downstream Envoy PEP
   pick('cf-token');
   pick('x-amzn-oidc-data');
   pick('authorization');
